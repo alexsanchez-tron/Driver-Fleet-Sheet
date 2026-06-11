@@ -428,6 +428,7 @@ select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns
 (function(){
   /* ── PROXY CONFIG — token lives securely in Vercel env vars ── */
   var PROXY_URL = '/api/submit';
+  var UPLOAD_URL = '/api/upload';
   var sigStates = {};
   var photoFiles = {};
   var videoFiles = {};
@@ -555,8 +556,20 @@ select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns
     return areas.map(function(a){ var r=document.querySelector('input[name="'+a.n+'"]:checked'); var ta=document.getElementById(a.t); return r&&r.value==='damage'&&ta&&ta.value?ta.value:''; }).filter(Boolean).join('\n')||'None';
   }
 
-  /* ── FILE TO BASE64 ── */
+  /* ── FILE HELPERS ── */
   function fileToBase64(file){ return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(e){ res(e.target.result.split(',')[1]); }; r.onerror=rej; r.readAsDataURL(file); }); }
+
+  async function uploadToNetlify(file) {
+    var b64 = await fileToBase64(file);
+    var res = await fetch(UPLOAD_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ filename: file.name, contentType: file.type, data: b64 })
+    });
+    var data = await res.json();
+    if (!res.ok) throw new Error('Photo upload failed: ' + (data.error || res.status));
+    return data.url;
+  }
 
   /* ── SUBMIT ── */
   window.submitForm = async function(type){
@@ -608,8 +621,32 @@ select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns
         fields['Safety / Equipment Checklist'] = getChecked('co-equipment');
       }
 
-      /* Note photo and video filenames in Damage Notes */
-      fields['Damage Notes'] += '\n\nPhotos: '+photoNames+'\nVideo: '+videoName;
+      /* Upload photos to Netlify and collect public URLs */
+      setOverlayMsg('Uploading photos…');
+      var attachments = [];
+      for(var i=0;i<photoSlots.length;i++){
+        var pf = photoFiles[photoSlots[i]];
+        if(pf){
+          try {
+            setOverlayMsg('Uploading photo '+(i+1)+' of '+photoSlots.length+'…');
+            var url = await uploadToNetlify(pf);
+            attachments.push({ url: url, filename: pf.name });
+          } catch(e){ console.warn('Photo upload failed:', e); }
+        }
+      }
+      /* Upload video if present */
+      var vf = videoFiles[videoSlot];
+      if(vf){
+        try {
+          setOverlayMsg('Uploading video…');
+          var vurl = await uploadToNetlify(vf);
+          attachments.push({ url: vurl, filename: vf.name });
+        } catch(e){ console.warn('Video upload failed:', e); }
+      }
+      if(attachments.length > 0) fields['Photos'] = attachments;
+      /* Note any files that failed */
+      var failed = photoSlots.filter(function(id){ return photoFiles[id] && !attachments.find(function(a){ return a.filename===photoFiles[id].name; }); });
+      if(failed.length) fields['Damage Notes'] += '\n\nNote: '+failed.length+' photo(s) failed to upload.';
 
       setOverlayMsg('Saving to Airtable…');
 
