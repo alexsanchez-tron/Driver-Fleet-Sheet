@@ -37,7 +37,12 @@ exports.handler = async (event) => {
       if (incoming[key] !== undefined) fields[key] = incoming[key];
     }
 
-    console.log('Sending to Airtable:', JSON.stringify(fields, null, 2));
+    // Ensure Driver Signed is a boolean
+    if (fields['Driver Signed'] !== undefined) {
+      fields['Driver Signed'] = fields['Driver Signed'] === true || fields['Driver Signed'] === 'true';
+    }
+
+    console.log('Sending fields:', Object.keys(fields).join(', '));
 
     const airtableRes = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Inspections`,
@@ -52,7 +57,7 @@ exports.handler = async (event) => {
     );
 
     const data = await airtableRes.json();
-    console.log('Airtable response:', JSON.stringify(data, null, 2));
+    console.log('Airtable status:', airtableRes.status, JSON.stringify(data).slice(0, 200));
 
     if (!airtableRes.ok) {
       return {
@@ -64,7 +69,7 @@ exports.handler = async (event) => {
 
     return { statusCode: 200, headers, body: JSON.stringify({ id: data.id, success: true }) };
   } catch (err) {
-    console.error('Submit error:', err);
+    console.error('Submit error:', err.message);
     return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
   }
 };
