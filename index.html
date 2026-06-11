@@ -620,7 +620,7 @@ select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns
       });
       var data = await res.json();
       hideOverlay();
-      if(!res.ok) throw new Error(data.error || 'Submission failed.');
+      if(!res.ok) throw new Error((data.error || 'Submission failed.') + (data.type ? ' ['+data.type+']' : '') + (data.details ? ' — '+JSON.stringify(data.details) : ''));
       toast('✅ Saved to Airtable — Record #'+data.id.slice(-6));
     } catch(e){
       hideOverlay();
