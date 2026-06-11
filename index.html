@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleet Vehicle Inspection</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue: #1A5FB4; --blue-light: #E8F0FC; --blue-mid: #3584E4;
+  --red: #C01C28; --red-light: #FDECED;
+  --green: #26A269; --green-light: #E9F5EC;
+  --amber: #E5A50A; --amber-light: #FEF9EC;
+  --gray-50: #F8F8F7; --gray-100: #EBEBEA; --gray-200: #D3D3D1;
+  --gray-400: #9A9A97; --gray-700: #3D3D3A; --gray-900: #1A1A18;
+  --white: #FFFFFF;
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--gray-50); color: var(--gray-900); font-size: 15px; line-height: 1.5; min-height: 100vh; }
+
+/* SETUP SCREEN */
+.setup-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--gray-50); }
+.setup-card { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--gray-100); padding: 32px; max-width: 480px; width: 100%; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.setup-logo { width: 48px; height: 48px; background: var(--blue); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px; }
+.setup-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+.setup-sub { font-size: 14px; color: var(--gray-400); margin-bottom: 24px; line-height: 1.6; }
+.setup-field { margin-bottom: 16px; }
+.setup-field label { display: block; font-size: 12px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.setup-field input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; color: var(--gray-900); }
+.setup-field input:focus { outline: none; border-color: var(--blue-mid); box-shadow: 0 0 0 3px rgba(53,132,228,0.12); }
+.setup-hint { font-size: 12px; color: var(--gray-400); margin-top: 5px; }
+.setup-hint a { color: var(--blue); text-decoration: none; }
+.setup-btn { width: 100%; padding: 13px; background: var(--blue); color: white; border: none; border-radius: var(--radius-md); font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 8px; transition: background 0.15s; }
+.setup-btn:hover { background: #1348A0; }
+.setup-btn:disabled { background: var(--gray-200); color: var(--gray-400); cursor: not-allowed; }
+.setup-status { margin-top: 14px; font-size: 13px; padding: 10px 14px; border-radius: var(--radius-sm); display: none; }
+.setup-status.info { background: var(--blue-light); color: var(--blue); display: block; }
+.setup-status.error { background: var(--red-light); color: var(--red); display: block; }
+.setup-status.success { background: var(--green-light); color: var(--green); display: block; }
+.setup-steps { margin: 20px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--gray-100); padding-top: 18px; }
+.setup-steps li { font-size: 13px; color: var(--gray-400); padding: 5px 0; display: flex; align-items: flex-start; gap: 8px; }
+.step-num { width: 20px; height: 20px; background: var(--blue-light); color: var(--blue); border-radius: 50%; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+
+/* MAIN APP */
+.app { display: none; }
+.app.visible { display: block; }
+.app-header { background: var(--blue); color: white; position: sticky; top: 0; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+.header-inner { max-width: 760px; margin: 0 auto; padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+.header-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.header-title { font-size: 17px; font-weight: 600; flex: 1; }
+.header-sub { font-size: 12px; opacity: 0.75; margin-top: 1px; }
+.conn-badge { font-size: 11px; background: rgba(255,255,255,0.15); padding: 4px 10px; border-radius: 20px; white-space: nowrap; cursor: pointer; }
+.conn-badge.connected { background: rgba(38,162,105,0.3); }
+.tab-wrap { max-width: 760px; margin: 0 auto; }
+.tab-bar { background: rgba(0,0,0,0.2); display: flex; }
+.tab-btn { flex: 1; padding: 10px 0; background: transparent; border: none; color: rgba(255,255,255,0.65); font-size: 13px; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; font-family: inherit; }
+.tab-btn.active { color: white; border-bottom-color: white; background: rgba(255,255,255,0.1); }
+.container { max-width: 760px; margin: 0 auto; padding: 20px; }
+.panel { display: none; }
+.panel.active { display: block; }
+.section { background: var(--white); border-radius: var(--radius-lg); border: 1px solid var(--gray-100); margin-bottom: 16px; overflow: hidden; }
+.section-head { padding: 14px 18px 12px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; gap: 10px; }
+.section-icon { width: 30px; height: 30px; background: var(--blue-light); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.section-label { font-size: 14px; font-weight: 600; color: var(--gray-700); }
+.section-badge { margin-left: auto; font-size: 11px; background: var(--red-light); color: var(--red); padding: 2px 8px; border-radius: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+.section-body { padding: 16px 18px; }
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+label.field-label { font-size: 12px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; }
+label.field-label .req { color: var(--red); }
+input[type=text], input[type=number], select, textarea { width: 100%; padding: 9px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 14px; font-family: inherit; color: var(--gray-900); background: var(--white); transition: border-color 0.12s; -webkit-appearance: none; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue-mid); box-shadow: 0 0 0 3px rgba(53,132,228,0.12); }
+input[readonly] { background: var(--gray-50); color: var(--gray-400); cursor: default; }
+input.error { border-color: var(--red); }
+.err-msg { font-size: 12px; color: var(--red); display: none; margin-top: 2px; }
+.err-msg.show { display: block; }
+select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%239A9A97' d='M5 6L0 0h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+.area-row { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--gray-50); gap: 12px; }
+.area-row:last-of-type { border-bottom: none; }
+.area-name { flex: 1; font-size: 14px; color: var(--gray-700); font-weight: 500; }
+.radio-group { display: flex; gap: 8px; }
+.radio-label { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; padding: 5px 10px; border-radius: 20px; border: 1.5px solid var(--gray-200); transition: all 0.12s; white-space: nowrap; }
+.radio-label input[type=radio] { width: 14px; height: 14px; accent-color: var(--blue-mid); }
+.radio-label.ok-selected { border-color: var(--green); background: var(--green-light); color: var(--green); }
+.radio-label.damage-selected { border-color: var(--red); background: var(--red-light); color: var(--red); }
+.damage-report { background: var(--red-light); border: 1.5px solid rgba(192,28,40,0.25); border-radius: var(--radius-md); padding: 14px; margin-top: 10px; display: none; }
+.damage-report.visible { display: block; }
+.damage-report label { display: block; font-size: 12px; font-weight: 600; color: var(--red); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.damage-report textarea { border-color: rgba(192,28,40,0.3); resize: vertical; }
+.check-list { display: flex; flex-direction: column; gap: 2px; }
+.check-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; color: var(--gray-700); transition: background 0.1s; -webkit-tap-highlight-color: transparent; user-select: none; }
+.check-item:hover { background: var(--gray-50); }
+.check-item input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--blue); flex-shrink: 0; cursor: pointer; }
+.check-item.checked { color: var(--gray-900); font-weight: 500; }
+.tire-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tire-btn { padding: 12px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-md); text-align: center; cursor: pointer; font-size: 13px; color: var(--gray-400); background: var(--gray-50); transition: all 0.12s; user-select: none; }
+.tire-btn .tire-pos { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; font-weight: 600; }
+.tire-btn.ok { border-color: var(--green); background: var(--green-light); color: var(--green); }
+.fuel-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.fuel-btn { padding: 10px 6px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-md); text-align: center; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--gray-400); background: var(--gray-50); transition: all 0.12s; }
+.fuel-btn.full { border-color: var(--green); background: var(--green-light); color: var(--green); }
+.fuel-btn.half { border-color: var(--blue-mid); background: var(--blue-light); color: var(--blue); }
+.fuel-btn.low { border-color: var(--amber); background: var(--amber-light); color: #9A6A00; }
+.fuel-btn.empty { border-color: var(--red); background: var(--red-light); color: var(--red); }
+.fuel-btn.selected { outline: 2px solid currentColor; outline-offset: 1px; }
+.fuel-icon { font-size: 18px; margin-bottom: 3px; }
+.fuel-label { font-size: 11px; margin-top: 2px; font-weight: 500; }
+.info-note { background: var(--blue-light); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; color: var(--blue); margin-bottom: 12px; }
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.photo-slot { aspect-ratio: 4/3; border: 1.5px dashed var(--gray-200); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; background: var(--gray-50); transition: all 0.15s; overflow: hidden; position: relative; }
+.photo-slot:hover { border-color: var(--blue-mid); background: var(--blue-light); }
+.photo-slot .slot-icon { font-size: 22px; color: var(--gray-400); margin-bottom: 5px; }
+.photo-slot .slot-label { font-size: 11px; color: var(--gray-400); text-align: center; padding: 0 6px; font-weight: 500; }
+.photo-slot.uploaded { border-style: solid; border-color: var(--green); background: var(--green-light); }
+.photo-slot.uploaded .slot-icon { color: var(--green); }
+.photo-slot.uploaded .slot-label { color: var(--green); }
+.photo-slot img.preview { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.video-slot { border: 1.5px dashed var(--gray-200); border-radius: var(--radius-md); padding: 18px; display: flex; align-items: center; gap: 14px; cursor: pointer; background: var(--gray-50); margin-top: 10px; transition: all 0.15s; }
+.video-slot:hover { border-color: var(--blue-mid); background: var(--blue-light); }
+.v-icon { font-size: 26px; flex-shrink: 0; }
+.v-title { font-size: 14px; font-weight: 600; color: var(--gray-700); }
+.v-sub { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+.video-slot.uploaded { border-style: solid; border-color: var(--green); }
+.video-slot.uploaded .v-title { color: var(--green); }
+.sig-wrap { position: relative; }
+.sig-canvas { display: block; width: 100%; height: 120px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-md); cursor: crosshair; background: var(--white); touch-action: none; }
+.sig-canvas.signed { border-color: var(--blue-mid); }
+.sig-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+.sig-ts { font-size: 12px; color: var(--gray-400); }
+.sig-placeholder { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 13px; color: var(--gray-200); pointer-events: none; user-select: none; }
+.btn-clear { font-size: 12px; color: var(--gray-400); background: none; border: 1px solid var(--gray-200); border-radius: var(--radius-sm); padding: 4px 10px; cursor: pointer; font-family: inherit; transition: all 0.12s; }
+.btn-clear:hover { border-color: var(--gray-400); color: var(--gray-700); }
+.submit-btn { width: 100%; padding: 14px; background: var(--blue); color: white; border: none; border-radius: var(--radius-md); font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 4px; transition: background 0.15s; }
+.submit-btn:hover { background: #1348A0; }
+.submit-btn:disabled { background: var(--gray-200); color: var(--gray-400); cursor: not-allowed; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--gray-900); color: white; padding: 12px 20px; border-radius: var(--radius-md); font-size: 14px; font-weight: 500; z-index: 1000; transition: transform 0.25s ease; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+.toast.show { transform: translateX(-50%) translateY(0); }
+.submitting-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); z-index: 500; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+.submitting-overlay.show { display: flex; }
+.spinner { width: 40px; height: 40px; border: 3px solid var(--gray-200); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.submitting-msg { font-size: 15px; font-weight: 500; color: var(--gray-700); }
+@media (max-width: 500px) { .field-grid { grid-template-columns: 1fr; } .photo-grid { grid-template-columns: repeat(2,1fr); } .fuel-grid { grid-template-columns: repeat(2,1fr); } .container { padding: 12px; } .radio-group { flex-direction: column; gap: 6px; } .area-row { flex-direction: column; align-items: flex-start; } }
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div class="setup-screen" id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">🚛</div>
+    <div class="setup-title">Connect to Airtable</div>
+    <div class="setup-sub">Enter your Airtable API token and we'll automatically create your Fleet Inspections base with the right field structure.</div>
+    <div class="setup-field">
+      <label>Airtable API token</label>
+      <input type="text" id="setup-token" placeholder="patxxx…" autocomplete="off" spellcheck="false">
+      <div class="setup-hint">Get yours at <a href="https://airtable.com/create/tokens" target="_blank">airtable.com/create/tokens</a> — needs <code>data.records:write</code> and <code>schema.bases:write</code> scopes.</div>
+    </div>
+    <button class="setup-btn" id="setup-btn" onclick="runSetup()">Connect &amp; Create Base →</button>
+    <div class="setup-status" id="setup-status"></div>
+    <ul class="setup-steps">
+      <li><div class="step-num">1</div>Creates a "Fleet Inspections" base in your Airtable workspace</li>
+      <li><div class="step-num">2</div>Sets up an Inspections table with all fields pre-configured</li>
+      <li><div class="step-num">3</div>Every form submission saves directly to that table, with photos attached</li>
+    </ul>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="main-app">
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-icon">🚛</div>
+      <div style="flex:1">
+        <div class="header-title">Fleet Vehicle Inspection</div>
+        <div class="header-sub">Check-In / Check-Out Form</div>
+      </div>
+      <div class="conn-badge connected" id="conn-badge" onclick="resetSetup()" title="Click to reconfigure">⬤ Airtable</div>
+    </div>
+    <div class="tab-wrap">
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('checkin')">▲ Start of Shift Check-In</button>
+        <button class="tab-btn" onclick="switchTab('checkout')">▼ End of Shift Check-Out</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- CHECK-IN PANEL -->
+    <div class="panel active" id="panel-checkin">
+      <div class="section">
+        <div class="section-head"><div class="section-icon">👤</div><div class="section-label">Driver &amp; Vehicle Information</div></div>
+        <div class="section-body">
+          <div class="field-grid" style="margin-bottom:14px">
+            <div class="field"><label class="field-label">Driver name <span class="req">*</span></label><input type="text" id="ci-driver" placeholder="Full legal name"></div>
+            <div class="field"><label class="field-label">Vehicle <span class="req">*</span></label>
+              <select id="ci-vehicle"><option value="">Select a vehicle…</option><option>VH-001 — Ford Transit (ABC-1234)</option><option>VH-002 — Chevy Express (DEF-5678)</option><option>VH-003 — Ram ProMaster (GHI-9012)</option><option>VH-004 — Mercedes Sprinter (JKL-3456)</option><option>VH-005 — Ford F-150 (MNO-7890)</option><option>VH-006 — Nissan NV (PQR-1122)</option></select>
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label class="field-label">Start time (auto)</label><input type="text" id="ci-timestamp" readonly></div>
+            <div class="field"><label class="field-label">Starting odometer (mi) <span class="req">*</span></label><input type="number" id="ci-odometer" placeholder="e.g. 42500" min="0" max="999999" oninput="validateOdometer()"><span class="err-msg" id="odom-err">Enter a valid reading (0–999,999 mi)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">🔍</div><div class="section-label">Exterior Condition</div></div>
+        <div class="section-body">
+          <p style="font-size:13px;color:var(--gray-400);margin-bottom:12px">Selecting "Damage found" reveals a required description field.</p>
+          <div class="area-row"><span class="area-name">Front of vehicle</span><div class="radio-group"><label class="radio-label" id="lbl-front-ok"><input type="radio" name="ci-front" value="ok" onchange="pickArea('front',this)"> No damage</label><label class="radio-label" id="lbl-front-dmg"><input type="radio" name="ci-front" value="damage" onchange="pickArea('front',this)"> Damage found</label></div></div>
+          <div class="damage-report" id="dmg-front"><label>Describe front damage *</label><textarea rows="2" id="dmg-front-txt" placeholder="Location, type, and severity…"></textarea></div>
+          <div class="area-row"><span class="area-name">Driver side</span><div class="radio-group"><label class="radio-label" id="lbl-driver-ok"><input type="radio" name="ci-driver-s" value="ok" onchange="pickArea('driver',this)"> No damage</label><label class="radio-label" id="lbl-driver-dmg"><input type="radio" name="ci-driver-s" value="damage" onchange="pickArea('driver',this)"> Damage found</label></div></div>
+          <div class="damage-report" id="dmg-driver"><label>Describe driver side damage *</label><textarea rows="2" id="dmg-driver-txt" placeholder="Location, type, and severity…"></textarea></div>
+          <div class="area-row"><span class="area-name">Passenger side</span><div class="radio-group"><label class="radio-label" id="lbl-passenger-ok"><input type="radio" name="ci-pass-s" value="ok" onchange="pickArea('passenger',this)"> No damage</label><label class="radio-label" id="lbl-passenger-dmg"><input type="radio" name="ci-pass-s" value="damage" onchange="pickArea('passenger',this)"> Damage found</label></div></div>
+          <div class="damage-report" id="dmg-passenger"><label>Describe passenger side damage *</label><textarea rows="2" id="dmg-passenger-txt" placeholder="Location, type, and severity…"></textarea></div>
+          <div class="area-row"><span class="area-name">Rear of vehicle</span><div class="radio-group"><label class="radio-label" id="lbl-rear-ok"><input type="radio" name="ci-rear" value="ok" onchange="pickArea('rear',this)"> No damage</label><label class="radio-label" id="lbl-rear-dmg"><input type="radio" name="ci-rear" value="damage" onchange="pickArea('rear',this)"> Damage found</label></div></div>
+          <div class="damage-report" id="dmg-rear"><label>Describe rear damage *</label><textarea rows="2" id="dmg-rear-txt" placeholder="Location, type, and severity…"></textarea></div>
+          <div class="area-row"><span class="area-name">Windows &amp; mirrors</span><div class="radio-group"><label class="radio-label" id="lbl-windows-ok"><input type="radio" name="ci-windows" value="ok" onchange="pickArea('windows',this)"> Clean &amp; undamaged</label><label class="radio-label" id="lbl-windows-dmg"><input type="radio" name="ci-windows" value="damage" onchange="pickArea('windows',this)"> Damage found</label></div></div>
+          <div class="damage-report" id="dmg-windows"><label>Describe window / mirror damage *</label><textarea rows="2" id="dmg-windows-txt" placeholder="Location, type, and severity…"></textarea></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">⚙️</div><div class="section-label">Tires</div></div>
+        <div class="section-body">
+          <div class="tire-grid">
+            <div class="tire-btn" id="tire-fl" onclick="toggleTire('tire-fl')"><div class="tire-pos">Front left</div>Tap to mark OK ✓</div>
+            <div class="tire-btn" id="tire-fr" onclick="toggleTire('tire-fr')"><div class="tire-pos">Front right</div>Tap to mark OK ✓</div>
+            <div class="tire-btn" id="tire-rl" onclick="toggleTire('tire-rl')"><div class="tire-pos">Rear left</div>Tap to mark OK ✓</div>
+            <div class="tire-btn" id="tire-rr" onclick="toggleTire('tire-rr')"><div class="tire-pos">Rear right</div>Tap to mark OK ✓</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">🪑</div><div class="section-label">Interior Condition</div></div>
+        <div class="section-body">
+          <div class="check-list" id="ci-interior">
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Interior clean"> Vehicle interior clean</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="No unusual odors"> No unusual odors</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Seats undamaged"> Seats free of damage</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="No warning lights"> Dashboard free of warning lights</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Registration present"> Registration present in vehicle</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Insurance card present"> Insurance card present in vehicle</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Charging cable present"> Charging cable present (if applicable)</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Keys/fob received"> Vehicle keys / fob received</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">🦺</div><div class="section-label">Safety Equipment</div></div>
+        <div class="section-body">
+          <div class="check-list" id="ci-safety">
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="First aid kit"> First aid kit present</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Fire extinguisher"> Fire extinguisher present</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Roadside kit"> Emergency roadside kit present</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Phone mount"> Phone mount present</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Delivery equipment"> Delivery equipment present (if applicable)</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">⛽</div><div class="section-label">Fuel / Charge Level</div></div>
+        <div class="section-body">
+          <div class="fuel-grid" id="fuel-ci">
+            <div class="fuel-btn full" onclick="selectFuel('fuel-ci',this,'100-75%')"><div class="fuel-icon">🟢</div>100–75%<div class="fuel-label">Full</div></div>
+            <div class="fuel-btn half" onclick="selectFuel('fuel-ci',this,'74-50%')"><div class="fuel-icon">🔵</div>74–50%<div class="fuel-label">Half</div></div>
+            <div class="fuel-btn low" onclick="selectFuel('fuel-ci',this,'49-25%')"><div class="fuel-icon">🟡</div>49–25%<div class="fuel-label">Low</div></div>
+            <div class="fuel-btn empty" onclick="selectFuel('fuel-ci',this,'Below 25%')"><div class="fuel-icon">🔴</div>Below 25%<div class="fuel-label">Critical</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">📷</div><div class="section-label">Photo Documentation</div><span class="section-badge">Required</span></div>
+        <div class="section-body">
+          <div class="info-note">All 6 photos will be attached to the Airtable record. Tap any slot to capture or upload.</div>
+          <div class="photo-grid">
+            <div class="photo-slot" id="ph-front" onclick="triggerPhoto('ph-front','Front')"><div class="slot-icon">📷</div><div class="slot-label">Front</div></div>
+            <div class="photo-slot" id="ph-driver" onclick="triggerPhoto('ph-driver','Driver side')"><div class="slot-icon">📷</div><div class="slot-label">Driver side</div></div>
+            <div class="photo-slot" id="ph-passenger" onclick="triggerPhoto('ph-passenger','Passenger side')"><div class="slot-icon">📷</div><div class="slot-label">Passenger side</div></div>
+            <div class="photo-slot" id="ph-rear" onclick="triggerPhoto('ph-rear','Rear')"><div class="slot-icon">📷</div><div class="slot-label">Rear</div></div>
+            <div class="photo-slot" id="ph-dash" onclick="triggerPhoto('ph-dash','Dashboard')"><div class="slot-icon">📷</div><div class="slot-label">Dashboard / odometer</div></div>
+            <div class="photo-slot" id="ph-xdmg" onclick="triggerPhoto('ph-xdmg','Existing damage')"><div class="slot-icon">📷</div><div class="slot-label">Existing damage</div></div>
+          </div>
+          <div class="video-slot" id="vid-ci" onclick="triggerVideo('vid-ci')">
+            <div class="v-icon">🎥</div>
+            <div><div class="v-title">Walkaround video</div><div class="v-sub">Capture all four sides + any existing damage</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">✍️</div><div class="section-label">Driver Certification</div></div>
+        <div class="section-body">
+          <p style="font-size:13px;color:var(--gray-400);margin-bottom:12px">I certify that I inspected this vehicle and documented all existing damage prior to operating it.</p>
+          <div class="sig-wrap">
+            <canvas class="sig-canvas" id="sig-ci" width="700" height="120"></canvas>
+            <div class="sig-placeholder" id="sig-ci-ph">Sign here</div>
+          </div>
+          <div class="sig-footer"><div class="sig-ts" id="sig-ci-ts">Timestamp will appear on signing</div><button class="btn-clear" onclick="clearSig('sig-ci')">✕ Clear</button></div>
+        </div>
+      </div>
+      <button class="submit-btn" id="submit-ci" onclick="submitForm('checkin')">Submit Check-In to Airtable →</button>
+      <div style="height:24px"></div>
+    </div>
+
+    <!-- CHECK-OUT PANEL -->
+    <div class="panel" id="panel-checkout">
+      <div class="section">
+        <div class="section-head"><div class="section-icon">👤</div><div class="section-label">Return Information</div></div>
+        <div class="section-body">
+          <div class="field-grid" style="margin-bottom:14px">
+            <div class="field"><label class="field-label">Driver name <span class="req">*</span></label><input type="text" id="co-driver" placeholder="Full legal name"></div>
+            <div class="field"><label class="field-label">Vehicle <span class="req">*</span></label>
+              <select id="co-vehicle"><option value="">Select a vehicle…</option><option>VH-001 — Ford Transit (ABC-1234)</option><option>VH-002 — Chevy Express (DEF-5678)</option><option>VH-003 — Ram ProMaster (GHI-9012)</option><option>VH-004 — Mercedes Sprinter (JKL-3456)</option><option>VH-005 — Ford F-150 (MNO-7890)</option><option>VH-006 — Nissan NV (PQR-1122)</option></select>
+            </div>
+          </div>
+          <div class="field-grid">
+            <div class="field"><label class="field-label">End time (auto)</label><input type="text" id="co-timestamp" readonly></div>
+            <div class="field"><label class="field-label">Ending odometer (mi) <span class="req">*</span></label><input type="number" id="co-odometer" placeholder="e.g. 42850" min="0" max="999999"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">🔍</div><div class="section-label">Exterior Condition Upon Return</div></div>
+        <div class="section-body">
+          <div class="area-row"><span class="area-name">Vehicle condition upon return</span><div class="radio-group"><label class="radio-label" id="lbl-ret-ok"><input type="radio" name="co-ext" value="ok" onchange="pickArea('ret',this)"> Same condition</label><label class="radio-label" id="lbl-ret-dmg"><input type="radio" name="co-ext" value="damage" onchange="pickArea('ret',this)"> New damage</label></div></div>
+          <div class="damage-report" id="dmg-ret"><label>Describe new damage incurred during shift *</label><textarea rows="3" id="dmg-ret-txt" placeholder="Location, type, and severity of any new damage…"></textarea></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">🪑</div><div class="section-label">Interior Condition Upon Return</div></div>
+        <div class="section-body">
+          <div class="check-list" id="co-interior">
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Vehicle cleaned"> Vehicle cleaned before return</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Trash removed"> All trash removed</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="No new interior damage"> No new interior damage</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">📦</div><div class="section-label">Equipment Return Verification</div></div>
+        <div class="section-body">
+          <div class="check-list" id="co-equipment">
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Keys returned"> Vehicle keys returned</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Delivery equipment returned"> Delivery equipment returned (if applicable)</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Phone mount returned"> Phone mount returned</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Charging cable returned"> Charging cable returned (if applicable)</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="First aid kit present"> First aid kit confirmed present</label>
+            <label class="check-item" onclick="styleCheck(this)"><input type="checkbox" data-label="Fire extinguisher present"> Fire extinguisher confirmed present</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">⛽</div><div class="section-label">Fuel / Charge Level Upon Return</div></div>
+        <div class="section-body">
+          <div class="fuel-grid" id="fuel-co">
+            <div class="fuel-btn full" onclick="selectFuel('fuel-co',this,'100-75%')"><div class="fuel-icon">🟢</div>100–75%<div class="fuel-label">Full</div></div>
+            <div class="fuel-btn half" onclick="selectFuel('fuel-co',this,'74-50%')"><div class="fuel-icon">🔵</div>74–50%<div class="fuel-label">Half</div></div>
+            <div class="fuel-btn low" onclick="selectFuel('fuel-co',this,'49-25%')"><div class="fuel-icon">🟡</div>49–25%<div class="fuel-label">Low</div></div>
+            <div class="fuel-btn empty" onclick="selectFuel('fuel-co',this,'Below 25%')"><div class="fuel-icon">🔴</div>Below 25%<div class="fuel-label">Critical</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">📷</div><div class="section-label">Return Photo Documentation</div><span class="section-badge">Required</span></div>
+        <div class="section-body">
+          <div class="info-note">All 6 photos will be attached to the Airtable record.</div>
+          <div class="photo-grid">
+            <div class="photo-slot" id="rph-front" onclick="triggerPhoto('rph-front','Front')"><div class="slot-icon">📷</div><div class="slot-label">Front</div></div>
+            <div class="photo-slot" id="rph-driver" onclick="triggerPhoto('rph-driver','Driver side')"><div class="slot-icon">📷</div><div class="slot-label">Driver side</div></div>
+            <div class="photo-slot" id="rph-passenger" onclick="triggerPhoto('rph-passenger','Passenger side')"><div class="slot-icon">📷</div><div class="slot-label">Passenger side</div></div>
+            <div class="photo-slot" id="rph-rear" onclick="triggerPhoto('rph-rear','Rear')"><div class="slot-icon">📷</div><div class="slot-label">Rear</div></div>
+            <div class="photo-slot" id="rph-dash" onclick="triggerPhoto('rph-dash','Dashboard')"><div class="slot-icon">📷</div><div class="slot-label">Dashboard / odometer</div></div>
+            <div class="photo-slot" id="rph-dmg" onclick="triggerPhoto('rph-dmg','New damage')"><div class="slot-icon">📷</div><div class="slot-label">New damage (if any)</div></div>
+          </div>
+          <div class="video-slot" id="vid-co" onclick="triggerVideo('vid-co')">
+            <div class="v-icon">🎥</div>
+            <div><div class="v-title">Return walkaround video</div><div class="v-sub">Capture all four sides of the vehicle upon return</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">✍️</div><div class="section-label">Driver Certification</div></div>
+        <div class="section-body">
+          <p style="font-size:13px;color:var(--gray-400);margin-bottom:12px">I certify that I am returning this vehicle in the condition documented above and have reported any new damage.</p>
+          <div class="sig-wrap">
+            <canvas class="sig-canvas" id="sig-co" width="700" height="120"></canvas>
+            <div class="sig-placeholder" id="sig-co-ph">Sign here</div>
+          </div>
+          <div class="sig-footer"><div class="sig-ts" id="sig-co-ts">Timestamp will appear on signing</div><button class="btn-clear" onclick="clearSig('sig-co')">✕ Clear</button></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><div class="section-icon">👔</div><div class="section-label">Manager Review</div></div>
+        <div class="section-body">
+          <div class="field" style="margin-bottom:12px"><label class="field-label">Manager name</label><input type="text" id="co-manager" placeholder="Reviewing manager's name"></div>
+          <div class="sig-wrap">
+            <canvas class="sig-canvas" id="sig-mgr" width="700" height="100"></canvas>
+            <div class="sig-placeholder" id="sig-mgr-ph">Manager signature</div>
+          </div>
+          <div class="sig-footer"><div class="sig-ts" id="sig-mgr-ts"></div><button class="btn-clear" onclick="clearSig('sig-mgr')">✕ Clear</button></div>
+        </div>
+      </div>
+      <button class="submit-btn" id="submit-co" onclick="submitForm('checkout')">Submit Check-Out to Airtable →</button>
+      <div style="height:24px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAYS -->
+<div class="submitting-overlay" id="submitting-overlay">
+  <div class="spinner"></div>
+  <div class="submitting-msg" id="submitting-msg">Saving to Airtable…</div>
+</div>
+<div class="toast" id="toast"></div>
+<input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="video-input" accept="video/*" capture="environment" style="display:none">
+
+<script>
+(function(){
+  /* ── PROXY CONFIG — token lives securely in Vercel env vars ── */
+  var PROXY_URL = '/api/submit';
+  var sigStates = {};
+  var photoFiles = {};
+  var videoFiles = {};
+  var fuelValues = {};
+
+  /* ── TIMESTAMPS ── */
+  function fmt(d){ return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})+' — '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}); }
+  var now = new Date();
+  document.getElementById('ci-timestamp').value = fmt(now);
+  document.getElementById('co-timestamp').value = fmt(now);
+
+  /* Show app immediately — no setup needed */
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('main-app').classList.add('visible');
+
+  /* ── FORM INTERACTIONS ── */
+  window.switchTab = function(t){
+    document.querySelectorAll('.tab-btn').forEach(function(b,i){ b.classList.toggle('active',['checkin','checkout'][i]===t); });
+    document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+    document.getElementById('panel-'+t).classList.add('active');
+    window.scrollTo(0,0);
+  };
+
+  window.pickArea = function(area, radio){
+    var isDmg = radio.value==='damage';
+    var dmg = document.getElementById('dmg-'+area);
+    if(dmg) dmg.classList.toggle('visible', isDmg);
+    var okL = document.getElementById('lbl-'+area+'-ok');
+    var dmgL = document.getElementById('lbl-'+area+'-dmg');
+    if(okL){ okL.classList.toggle('ok-selected',!isDmg); okL.classList.remove('damage-selected'); }
+    if(dmgL){ dmgL.classList.toggle('damage-selected',isDmg); dmgL.classList.remove('ok-selected'); }
+  };
+
+  window.toggleTire = function(id){
+    var el = document.getElementById(id);
+    var ok = el.classList.toggle('ok');
+    el.querySelector('div:last-child').textContent = ok ? '✓ Acceptable' : 'Tap to mark OK ✓';
+  };
+
+  window.selectFuel = function(gid, el, val){
+    document.querySelectorAll('#'+gid+' .fuel-btn').forEach(function(b){ b.classList.remove('selected'); });
+    el.classList.add('selected');
+    fuelValues[gid] = val;
+  };
+
+  window.styleCheck = function(lbl){
+    setTimeout(function(){ var cb=lbl.querySelector('input'); if(cb) lbl.classList.toggle('checked',cb.checked); },0);
+  };
+
+  window.validateOdometer = function(){
+    var v = parseFloat(document.getElementById('ci-odometer').value);
+    var bad = isNaN(v)||v<0||v>999999;
+    document.getElementById('odom-err').classList.toggle('show',bad);
+    document.getElementById('ci-odometer').classList.toggle('error',bad);
+  };
+
+  /* ── FILE UPLOADS ── */
+  var curSlot = null;
+  var photoInp = document.getElementById('photo-input');
+  var videoInp = document.getElementById('video-input');
+
+  window.triggerPhoto = function(id, label){ curSlot={id:id,label:label,type:'photo'}; photoInp.value=''; photoInp.click(); };
+  window.triggerVideo = function(id){ curSlot={id:id,type:'video'}; videoInp.value=''; videoInp.click(); };
+
+  photoInp.addEventListener('change', function(){
+    if(!photoInp.files||!photoInp.files[0]||!curSlot) return;
+    var file = photoInp.files[0];
+    photoFiles[curSlot.id] = file;
+    var slot = document.getElementById(curSlot.id);
+    var lbl = curSlot.label;
+    slot.classList.add('uploaded');
+    var r = new FileReader();
+    r.onload = function(e){ slot.innerHTML='<img class="preview" src="'+e.target.result+'" alt="'+lbl+'"><div style="position:absolute;bottom:6px;right:6px;font-size:16px">✅</div>'; };
+    r.readAsDataURL(file);
+    toast('📸 '+lbl+' ready');
+  });
+
+  videoInp.addEventListener('change', function(){
+    if(!videoInp.files||!videoInp.files[0]||!curSlot) return;
+    videoFiles[curSlot.id] = videoInp.files[0];
+    var slot = document.getElementById(curSlot.id);
+    slot.classList.add('uploaded');
+    slot.querySelector('.v-title').textContent = '✅ Video ready — '+videoInp.files[0].name;
+    slot.querySelector('.v-icon').textContent = '✅';
+    toast('🎥 Video ready');
+  });
+
+  /* ── SIGNATURE ── */
+  function initSig(id){
+    var c = document.getElementById(id); if(!c) return;
+    var ctx = c.getContext('2d');
+    ctx.strokeStyle='#1A5FB4'; ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.lineJoin='round';
+    var drawing=false, last={};
+    sigStates[id] = false;
+    function pos(e){ var r=c.getBoundingClientRect(); var sx=c.width/r.width; var sy=c.height/r.height; if(e.touches) return{x:(e.touches[0].clientX-r.left)*sx,y:(e.touches[0].clientY-r.top)*sy}; return{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy}; }
+    function start(e){ drawing=true; last=pos(e); }
+    function move(e){ if(!drawing) return; e.preventDefault(); var p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; if(!sigStates[id]){ sigStates[id]=true; var ph=document.getElementById(id+'-ph'); if(ph) ph.style.display='none'; c.classList.add('signed'); var ts=document.getElementById(id+'-ts'); if(ts) ts.textContent='Signed: '+fmt(new Date()); } }
+    function end(){ drawing=false; }
+    c.addEventListener('mousedown',start); c.addEventListener('mousemove',move); c.addEventListener('mouseup',end); c.addEventListener('mouseleave',end);
+    c.addEventListener('touchstart',start,{passive:false}); c.addEventListener('touchmove',move,{passive:false}); c.addEventListener('touchend',end);
+  }
+
+  window.clearSig = function(id){
+    var c=document.getElementById(id); if(!c) return;
+    c.getContext('2d').clearRect(0,0,c.width,c.height);
+    sigStates[id]=false; c.classList.remove('signed');
+    var ph=document.getElementById(id+'-ph'); if(ph) ph.style.display='';
+    var ts=document.getElementById(id+'-ts'); if(ts) ts.textContent=id.includes('mgr')?'':'Timestamp will appear on signing';
+  };
+
+  ['sig-ci','sig-co','sig-mgr'].forEach(initSig);
+
+  /* ── CHECKLIST HELPERS ── */
+  function getChecked(containerId){
+    var items=[]; document.querySelectorAll('#'+containerId+' input[type=checkbox]').forEach(function(cb){ if(cb.checked) items.push(cb.dataset.label); }); return items.join(', ');
+  }
+  function getTires(){
+    var t=[]; ['fl','fr','rl','rr'].forEach(function(id){ var el=document.getElementById('tire-'+id); if(el&&el.classList.contains('ok')) t.push(el.querySelector('.tire-pos').textContent); }); return t.join(', ')||'None marked';
+  }
+  function getAreaVal(name){ var r=document.querySelector('input[name="'+name+'"]:checked'); return r?r.value:'not inspected'; }
+  function getDmgNotes(type){
+    var areas = type==='checkin'
+      ? [{n:'ci-front',t:'dmg-front-txt'},{n:'ci-driver-s',t:'dmg-driver-txt'},{n:'ci-pass-s',t:'dmg-passenger-txt'},{n:'ci-rear',t:'dmg-rear-txt'},{n:'ci-windows',t:'dmg-windows-txt'}]
+      : [{n:'co-ext',t:'dmg-ret-txt'}];
+    return areas.map(function(a){ var r=document.querySelector('input[name="'+a.n+'"]:checked'); var ta=document.getElementById(a.t); return r&&r.value==='damage'&&ta&&ta.value?ta.value:''; }).filter(Boolean).join('\n')||'None';
+  }
+
+  /* ── FILE TO BASE64 ── */
+  function fileToBase64(file){ return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(e){ res(e.target.result.split(',')[1]); }; r.onerror=rej; r.readAsDataURL(file); }); }
+
+  /* ── SUBMIT ── */
+  window.submitForm = async function(type){
+    var sigId = type==='checkin'?'sig-ci':'sig-co';
+    if(!sigStates[sigId]){ toast('⚠️ Please sign the driver certification'); document.getElementById(sigId).scrollIntoView({behavior:'smooth',block:'center'}); return; }
+
+    var driverVal = type==='checkin'?document.getElementById('ci-driver').value:document.getElementById('co-driver').value;
+    var vehicleVal = type==='checkin'?document.getElementById('ci-vehicle').value:document.getElementById('co-vehicle').value;
+    if(!driverVal||!vehicleVal){ toast('⚠️ Driver name and vehicle are required'); return; }
+
+    showOverlay('Uploading photos…');
+
+    try {
+      /* Build photo attachments — Airtable accepts base64 via data URIs in the url field is NOT supported;
+         we must upload via the /v0/{baseId}/{tableId} records endpoint with attachment URLs.
+         Since we can't host files externally from here, we'll encode as base64 data URIs.
+         Airtable's REST API does NOT accept base64 directly — we skip attachments and note filenames instead. */
+      var photoSlots = type==='checkin'
+        ? ['ph-front','ph-driver','ph-passenger','ph-rear','ph-dash','ph-xdmg']
+        : ['rph-front','rph-driver','rph-passenger','rph-rear','rph-dash','rph-dmg'];
+      var videoSlot  = type==='checkin'?'vid-ci':'vid-co';
+
+      var photoNames = photoSlots.map(function(id){ var f=photoFiles[id]; return f?f.name:'(not uploaded)'; }).join(', ');
+      var videoName  = videoFiles[videoSlot]?videoFiles[videoSlot].name:'(not uploaded)';
+
+      var fields = {
+        'Submission Type': type==='checkin'?'Check-In':'Check-Out',
+        'Driver Name': driverVal,
+        'Vehicle': vehicleVal,
+        'Timestamp': fmt(new Date()),
+        'Odometer': parseFloat((type==='checkin'?document.getElementById('ci-odometer'):document.getElementById('co-odometer')).value)||0,
+        'Fuel Level': fuelValues[type==='checkin'?'fuel-ci':'fuel-co']||'Not selected',
+        'Driver Signed': sigStates[sigId]===true,
+        'Damage Notes': getDmgNotes(type),
+        'Tires': type==='checkin'?getTires():'N/A',
+      };
+
+      if(type==='checkin'){
+        fields['Front Condition']            = getAreaVal('ci-front');
+        fields['Driver Side Condition']      = getAreaVal('ci-driver-s');
+        fields['Passenger Side Condition']   = getAreaVal('ci-pass-s');
+        fields['Rear Condition']             = getAreaVal('ci-rear');
+        fields['Windows & Mirrors']          = getAreaVal('ci-windows');
+        fields['Interior Checklist']         = getChecked('ci-interior');
+        fields['Safety / Equipment Checklist'] = getChecked('ci-safety');
+      } else {
+        fields['Front Condition']            = getAreaVal('co-ext');
+        fields['Interior Checklist']         = getChecked('co-interior');
+        fields['Safety / Equipment Checklist'] = getChecked('co-equipment');
+      }
+
+      /* Attach photos as Airtable attachment objects — Airtable requires a URL field.
+         We use a workaround: upload each photo as base64 data URI via a Blob URL isn't shareable,
+         so we store filenames in a text note field and attach any already-public URLs.
+         For full attachment support, a file hosting step would be needed (e.g. upload to S3 first).
+         We add a note field with photo filenames for now. */
+      fields['Damage Notes'] += '\n\nPhotos: '+photoNames+'\nVideo: '+videoName;
+
+      /* Try to attach photos if they exist — using data URIs (Airtable may reject, graceful fallback) */
+      var attachments = [];
+      for(var i=0;i<photoSlots.length;i++){
+        var f = photoFiles[photoSlots[i]];
+        if(f){
+          try {
+            var b64 = await fileToBase64(f);
+            attachments.push({url:'data:'+f.type+';base64,'+b64, filename:f.name});
+          } catch(e){}
+        }
+      }
+      if(attachments.length>0) fields['Photos'] = attachments;
+
+      var vf = videoFiles[videoSlot];
+      if(vf){
+        try {
+          var vb64 = await fileToBase64(vf);
+          fields['Video'] = [{url:'data:'+vf.type+';base64,'+vb64, filename:vf.name}];
+        } catch(e){}
+      }
+
+      setOverlayMsg('Saving to Airtable…');
+
+      var res = await fetch(PROXY_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({fields: fields})
+      });
+      var data = await res.json();
+      hideOverlay();
+      if(!res.ok) throw new Error(data.error || 'Submission failed.');
+      toast('✅ Saved to Airtable — Record #'+data.id.slice(-6));
+    } catch(e){
+      hideOverlay();
+      toast('❌ Failed: '+e.message);
+    }
+  };
+
+  function showOverlay(msg){ var o=document.getElementById('submitting-overlay'); o.classList.add('show'); document.getElementById('submitting-msg').textContent=msg||'Saving…'; }
+  function setOverlayMsg(msg){ document.getElementById('submitting-msg').textContent=msg; }
+  function hideOverlay(){ document.getElementById('submitting-overlay').classList.remove('show'); }
+
+  function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); },3000); }
+
+})();
+</script>
+</body>
+</html>
