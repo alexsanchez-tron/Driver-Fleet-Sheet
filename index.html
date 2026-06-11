@@ -567,7 +567,7 @@ select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns
     var vehicleVal = type==='checkin'?document.getElementById('ci-vehicle').value:document.getElementById('co-vehicle').value;
     if(!driverVal||!vehicleVal){ toast('⚠️ Driver name and vehicle are required'); return; }
 
-    showOverlay('Uploading photos…');
+    showOverlay('Saving inspection…');
 
     try {
       /* Build photo attachments — Airtable accepts base64 via data URIs in the url field is NOT supported;
@@ -608,33 +608,8 @@ select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns
         fields['Safety / Equipment Checklist'] = getChecked('co-equipment');
       }
 
-      /* Attach photos as Airtable attachment objects — Airtable requires a URL field.
-         We use a workaround: upload each photo as base64 data URI via a Blob URL isn't shareable,
-         so we store filenames in a text note field and attach any already-public URLs.
-         For full attachment support, a file hosting step would be needed (e.g. upload to S3 first).
-         We add a note field with photo filenames for now. */
+      /* Note photo and video filenames in Damage Notes */
       fields['Damage Notes'] += '\n\nPhotos: '+photoNames+'\nVideo: '+videoName;
-
-      /* Try to attach photos if they exist — using data URIs (Airtable may reject, graceful fallback) */
-      var attachments = [];
-      for(var i=0;i<photoSlots.length;i++){
-        var f = photoFiles[photoSlots[i]];
-        if(f){
-          try {
-            var b64 = await fileToBase64(f);
-            attachments.push({url:'data:'+f.type+';base64,'+b64, filename:f.name});
-          } catch(e){}
-        }
-      }
-      if(attachments.length>0) fields['Photos'] = attachments;
-
-      var vf = videoFiles[videoSlot];
-      if(vf){
-        try {
-          var vb64 = await fileToBase64(vf);
-          fields['Video'] = [{url:'data:'+vf.type+';base64,'+vb64, filename:vf.name}];
-        } catch(e){}
-      }
 
       setOverlayMsg('Saving to Airtable…');
 
