@@ -428,7 +428,7 @@ select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns
 (function(){
   /* ── PROXY CONFIG — token lives securely in Vercel env vars ── */
   var PROXY_URL = '/.netlify/functions/submit';
-  var UPLOAD_URL = '/.netlify/functions/upload';
+  var IMGBB_KEY = '4e29f9b198ee456111acc540deb708d6';
   var sigStates = {};
   var photoFiles = {};
   var videoFiles = {};
@@ -559,16 +559,18 @@ select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns
   /* ── FILE HELPERS ── */
   function fileToBase64(file){ return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(e){ res(e.target.result.split(',')[1]); }; r.onerror=rej; r.readAsDataURL(file); }); }
 
-  async function uploadToNetlify(file) {
+  async function uploadToImgBB(file) {
     var b64 = await fileToBase64(file);
-    var res = await fetch(UPLOAD_URL, {
+    var form = new FormData();
+    form.append('image', b64);
+    form.append('name', file.name);
+    var res = await fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_KEY, {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ filename: file.name, contentType: file.type, data: b64 })
+      body: form
     });
     var data = await res.json();
-    if (!res.ok) throw new Error('Photo upload failed: ' + (data.error || res.status));
-    return data.url;
+    if (!data.success) throw new Error('Photo upload failed: ' + (data.error?.message || 'ImgBB error'));
+    return data.data.url;
   }
 
   /* ── SUBMIT ── */
@@ -629,7 +631,7 @@ select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns
         if(pf){
           try {
             setOverlayMsg('Uploading photo '+(i+1)+' of '+photoSlots.length+'…');
-            var url = await uploadToNetlify(pf);
+            var url = await uploadToImgBB(pf);
             attachments.push({ url: url, filename: pf.name });
           } catch(e){ console.warn('Photo upload failed:', e); }
         }
@@ -639,7 +641,7 @@ select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns
       if(vf){
         try {
           setOverlayMsg('Uploading video…');
-          var vurl = await uploadToNetlify(vf);
+          var vurl = await uploadToImgBB(vf);
           attachments.push({ url: vurl, filename: vf.name });
         } catch(e){ console.warn('Video upload failed:', e); }
       }
