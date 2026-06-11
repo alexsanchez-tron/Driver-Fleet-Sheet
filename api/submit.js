@@ -1,17 +1,17 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+exports.handler = async (event) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+  if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
 
   try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const body = JSON.parse(event.body);
     const incoming = body.fields || {};
 
-    // Only send fields that exist in your Airtable table — exact names must match
-    const fields = {};
     const allowed = [
       'Submission Type',
       'Driver Name',
@@ -29,12 +29,12 @@ export default async function handler(req, res) {
       'Safety / Equipment Checklist',
       'Tires',
       'Driver Signed',
+      'Photos',
     ];
 
+    const fields = {};
     for (const key of allowed) {
-      if (incoming[key] !== undefined) {
-        fields[key] = incoming[key];
-      }
+      if (incoming[key] !== undefined) fields[key] = incoming[key];
     }
 
     console.log('Sending to Airtable:', JSON.stringify(fields, null, 2));
@@ -55,16 +55,16 @@ export default async function handler(req, res) {
     console.log('Airtable response:', JSON.stringify(data, null, 2));
 
     if (!airtableRes.ok) {
-      return res.status(airtableRes.status).json({
-        error: data.error?.message || 'Airtable error',
-        type: data.error?.type,
-        details: data,
-      });
+      return {
+        statusCode: airtableRes.status,
+        headers,
+        body: JSON.stringify({ error: data.error?.message || 'Airtable error', type: data.error?.type }),
+      };
     }
 
-    return res.status(200).json({ id: data.id, success: true });
+    return { statusCode: 200, headers, body: JSON.stringify({ id: data.id, success: true }) };
   } catch (err) {
-    console.error('Proxy error:', err);
-    return res.status(500).json({ error: err.message });
+    console.error('Submit error:', err);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
   }
-}
+};
